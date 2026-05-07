@@ -155,7 +155,7 @@ function PracticePage() {
       <header className="flex items-center justify-between border-b border-border bg-surface/80 backdrop-blur px-4 py-2.5">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gradient-to-br from-primary to-accent-glow">
-            <Snowflake className="h-4.5 w-4.5 text-primary-foreground" />
+            <Snowflake className="h-4 w-4 text-primary-foreground" />
           </div>
           <div>
             <h1 className="text-sm font-semibold leading-tight">SnowQL</h1>
