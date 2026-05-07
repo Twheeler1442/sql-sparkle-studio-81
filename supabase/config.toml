@@ -1,1 +1,4 @@
 project_id = "ggwfcqibcjbekuydzvbo"
+
+[functions.sql-coach]
+verify_jwt = false
