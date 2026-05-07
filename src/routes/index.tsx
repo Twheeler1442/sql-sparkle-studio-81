@@ -204,7 +204,7 @@ function PracticePage() {
       </header>
 
       {/* Body */}
-      <ResizablePanelGroup direction="horizontal" className="flex-1">
+      <ResizablePanelGroup orientation="horizontal" className="flex-1">
         {/* Schema sidebar */}
         <ResizablePanel defaultSize={16} minSize={10} maxSize={25}>
           <div className="h-full border-r border-border bg-surface/40">
@@ -215,7 +215,7 @@ function PracticePage() {
 
         {/* Center: prompt + editor + results */}
         <ResizablePanel defaultSize={56}>
-          <ResizablePanelGroup direction="vertical">
+          <ResizablePanelGroup orientation="vertical">
             {/* Question prompt */}
             <ResizablePanel defaultSize={28} minSize={12}>
               <div className="h-full overflow-auto border-b border-border bg-surface/30 p-4">
