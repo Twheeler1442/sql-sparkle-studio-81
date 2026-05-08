@@ -8,13 +8,24 @@ const corsHeaders = {
 
 const SCHEMA = `
 TABLES (SQLite engine, but use Snowflake-compatible idioms when possible):
-customers(customer_id PK, name, email, country, signup_date, segment)
-products(product_id PK, name, category, price, cost)
-orders(order_id PK, customer_id FK, order_date, status, total)
+
+customers(customer_id PK, name, email, country, city, signup_date, segment[Enterprise|SMB|Consumer], channel[organic|paid|referral|partner], lifetime_value)
+products(product_id PK, name, category, subcategory, price, cost, supplier_id FK->suppliers, launched_on)
+suppliers(supplier_id PK, name, country, rating)
+inventory(product_id+warehouse PK, on_hand, reorder_point) -- warehouses: US-EAST|US-WEST|EU|APAC
+orders(order_id PK, customer_id FK, order_date, status[completed|cancelled|refunded|pending], channel[web|mobile|partner], total, discount)
 order_items(order_item_id PK, order_id FK, product_id FK, quantity, unit_price)
-departments(department_id PK, name)
-employees(employee_id PK, name, department_id FK, manager_id FK->employees, hire_date, salary)
-web_events(event_id PK, customer_id, event_type, event_time, page)
+payments(payment_id PK, order_id FK, method[card|paypal|ach|gift], amount, paid_at)
+refunds(refund_id PK, order_id FK, amount, reason, refunded_at)
+reviews(review_id PK, product_id FK, customer_id FK, rating[1..5], body, created_at)
+departments(department_id PK, name, cost_center)
+employees(employee_id PK, name, email, department_id FK, manager_id FK->employees [self], title, hire_date, salary, is_active)
+marketing_campaigns(campaign_id PK, name, channel[google|meta|email|tiktok|partner], start_date, end_date, spend)
+campaign_attribution(attribution_id PK, customer_id FK, campaign_id FK, touched_at, position[first|mid|last])
+subscriptions(subscription_id PK, customer_id FK, plan[Free|Pro|Team|Enterprise], mrr, started_on, cancelled_on NULL=active)
+web_events(event_id PK, customer_id, session_id, event_type[page_view|add_to_cart|checkout|purchase|signup|login], event_time, page, device[desktop|mobile|tablet])
+
+Approx row counts: customers~30, products~20, suppliers 5, orders 60, order_items ~93, payments ~57, refunds 3, reviews ~23, employees 20, departments 5, campaigns 5, attribution ~16, subscriptions 25, web_events 30.
 `;
 
 serve(async (req) => {
@@ -28,40 +39,42 @@ serve(async (req) => {
 
     let systemPrompt = "";
     let userPrompt = "";
+    let model = "google/gemini-2.5-flash";
 
     if (mode === "generate") {
-      systemPrompt = `You are a senior data engineer designing SQL practice problems. Use this schema:
+      systemPrompt = `You are a senior data engineer designing SQL practice problems for an interactive trainer.
+Schema:
 ${SCHEMA}
 
 Generate ONE practice problem. Return ONLY valid JSON in this exact shape:
 {
-  "title": "short descriptive title",
+  "title": "short descriptive title (max 60 chars)",
   "difficulty": "easy|medium|hard|expert",
-  "topic": "joins|aggregation|window|cte|subquery|transformation|etc",
-  "prompt": "The full problem statement in markdown. Be specific about what columns/order to return.",
-  "hints": ["hint1","hint2"],
+  "topic": "joins|aggregation|window|cte|subquery|transformation|recursive|cohort|sessionization|attribution",
+  "scenario": "1-2 sentence business framing — WHY this analysis matters.",
+  "prompt": "Full problem statement in markdown. Be VERY specific: required columns (in order), filters, sort order, ties, NULL handling, formatting (e.g. 'round to 2dp', 'as YYYY-MM'). Use bullet points.",
+  "relevant_tables": ["tables","needed"],
+  "hints": ["progressive hint 1","progressive hint 2","progressive hint 3"],
   "expected_columns": ["col1","col2"],
-  "solution_sql": "A reference solution that runs on SQLite"
+  "expected_row_count": 10,
+  "solution_sql": "A reference solution that runs on SQLite. Well-formatted, commented."
 }
 
 Difficulty guide:
-- easy: simple SELECT/WHERE/ORDER BY/basic aggregation
-- medium: JOINs across 2-3 tables, GROUP BY, HAVING
-- hard: window functions, CTEs, self-joins, correlated subqueries
-- expert: multi-CTE transformations, recursive CTEs, complex business logic, sessionization, cohort analysis`;
+- easy: simple SELECT/WHERE/ORDER BY/LIMIT/basic aggregation, single table
+- medium: 2-3 table JOINs, GROUP BY + HAVING, CASE expressions, basic date functions
+- hard: window functions (ROW_NUMBER, RANK, LAG/LEAD, running totals), multi-CTE, self-joins, correlated subqueries, percentiles
+- expert: long multi-CTE transformations, recursive CTEs (org tree, date spine), sessionization with gap detection, cohort retention matrix, multi-touch attribution, funnel conversion, MRR movement (new/expansion/churn), period-over-period with windowing
+
+Be creative and realistic. Vary the topic and tables across calls. The "prompt" should read like a real analyst ticket.`;
       userPrompt = `Generate a ${difficulty || "medium"} difficulty problem${
-        topic ? ` focused on ${topic}` : ""
-      }. Make it realistic and interesting.`;
+        topic && topic !== "any" ? ` focused on ${topic}` : ""
+      }. Pick interesting business angles (cohorts, attribution, funnels, churn, inventory health, NPS-style, etc.) when difficulty allows.`;
     } else if (mode === "critique") {
-      systemPrompt = `You are an expert SQL reviewer. Schema:
+      systemPrompt = `You are an expert SQL reviewer / mentor. Schema:
 ${SCHEMA}
 
-Review the user's SQL submission. Be concise but insightful. Cover:
-1. Correctness — does it answer the question? Was the result right?
-2. Style — formatting, naming, readability
-3. Performance — would it scale? Better approaches?
-4. Snowflake-isms — mention QUALIFY, LATERAL FLATTEN, or other Snowflake-native features that would apply
-Use markdown. Keep under 250 words.`;
+Review the user's SQL submission against the question. Be specific, cite line/column behavior. Use markdown with headings (## Correctness, ## Style, ## Performance, ## Snowflake idioms). Under 350 words. End with a one-line verdict like **Verdict: ✅ Correct** or **Verdict: ⚠️ Close** or **Verdict: ❌ Incorrect**.`;
       userPrompt = `Question:\n${question}\n\nUser's SQL:\n\`\`\`sql\n${userSql}\n\`\`\`\n\nExecution result: ${
         error ? `ERROR: ${error}` : `Returned ${result?.rowCount ?? 0} rows in ${result?.ms ?? 0}ms`
       }${
@@ -72,7 +85,7 @@ Use markdown. Keep under 250 words.`;
           : ""
       }`;
     } else if (mode === "chat") {
-      systemPrompt = `You are a SQL tutor inside a practice app. Schema:\n${SCHEMA}\nAnswer questions about SQL, the schema, or help debug. Be concise and use markdown code blocks for SQL.`;
+      systemPrompt = `You are a SQL tutor inside a practice app. Schema:\n${SCHEMA}\nAnswer questions about SQL, the schema, or help debug. Be concise, use markdown, and prefer code blocks for SQL examples.`;
       userPrompt = question;
     } else {
       throw new Error("Invalid mode");
@@ -87,7 +100,7 @@ Use markdown. Keep under 250 words.`;
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
+          model,
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
