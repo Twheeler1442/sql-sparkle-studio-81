@@ -201,7 +201,7 @@ function PracticePage() {
             <div>
               <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 <Table2 className="h-3.5 w-3.5 text-primary" />
-                Table2 you'll need
+                Tables you'll need
               </div>
               <div className="space-y-1.5">
                 {question.relevant_tables
