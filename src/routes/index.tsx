@@ -11,7 +11,7 @@ import {
   Database as DbIcon,
   Snowflake,
   ChevronDown,
-  Tables,
+  Table2,
   BookOpen,
   MessageCircle,
 } from "lucide-react";
@@ -200,8 +200,8 @@ function PracticePage() {
           {question.relevant_tables && question.relevant_tables.length > 0 && (
             <div>
               <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                <Tables className="h-3.5 w-3.5 text-primary" />
-                Tables you'll need
+                <Table2 className="h-3.5 w-3.5 text-primary" />
+                Table2 you'll need
               </div>
               <div className="space-y-1.5">
                 {question.relevant_tables
@@ -406,7 +406,7 @@ function PracticePage() {
               ["problem", BookOpen, "Problem"],
               ["editor", Play, "Editor"],
               ["results", DbIcon, "Results"],
-              ["schema", Tables, "Schema"],
+              ["schema", Table2, "Schema"],
               ["coach", MessageCircle, "Coach"],
             ] as const).map(([key, Icon, label]) => (
               <button
@@ -426,7 +426,7 @@ function PracticePage() {
         </>
       ) : (
         // ---- Desktop layout: resizable panels ----------------------------
-        <ResizablePanelGroup direction="horizontal" className="flex-1">
+        <ResizablePanelGroup orientation="horizontal" className="flex-1">
           <ResizablePanel defaultSize={18} minSize={12} maxSize={28}>
             <div className="h-full border-r border-border bg-surface/40">
               <SchemaExplorer />
@@ -435,7 +435,7 @@ function PracticePage() {
           <ResizableHandle />
 
           <ResizablePanel defaultSize={54}>
-            <ResizablePanelGroup direction="vertical">
+            <ResizablePanelGroup orientation="vertical">
               <ResizablePanel defaultSize={40} minSize={15}>
                 <div className="h-full border-b border-border bg-surface/30">
                   {ProblemPane}
