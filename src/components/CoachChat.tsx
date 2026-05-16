@@ -1,6 +1,6 @@
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { Send, Sparkles, Loader2 } from "lucide-react";
+import { Send, Sparkles, Loader2, Brain, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -9,15 +9,18 @@ type Msg = { role: "user" | "assistant"; content: string };
 export function CoachChat({
   contextQuestion,
   contextSql,
+  contextScratchpad,
 }: {
   contextQuestion?: string;
   contextSql?: string;
+  contextScratchpad?: string;
 }) {
+  const [mode, setMode] = useState<"socratic" | "direct">("socratic");
   const [messages, setMessages] = useState<Msg[]>([
     {
       role: "assistant",
       content:
-        "Hi! I'm your SQL coach. Ask me anything about the schema, request hints, or paste a query for review.",
+        "Hey — I'm your SQL coach. In **Socratic** mode I'll ask guiding questions to help you think it through. Flip to **Direct** if you want straight answers.\n\nTell me what you're working on, or paste a query.",
     },
   ]);
   const [input, setInput] = useState("");
@@ -31,13 +34,16 @@ export function CoachChat({
     setMessages(next);
     setLoading(true);
     try {
-      const composed = contextQuestion
-        ? `Context — current question: ${contextQuestion}\n${
-            contextSql ? `Current SQL:\n${contextSql}\n` : ""
-          }\nUser asks: ${text}`
-        : text;
       const { data, error } = await supabase.functions.invoke("sql-coach", {
-        body: { mode: "chat", question: composed },
+        body: {
+          mode: "chat",
+          coachStyle: mode,
+          question: text,
+          contextQuestion,
+          contextSql,
+          contextScratchpad,
+          history: messages.slice(-8),
+        },
       });
       if (error) throw error;
       setMessages([...next, { role: "assistant", content: data.content }]);
@@ -50,9 +56,35 @@ export function CoachChat({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2 border-b border-border px-3 py-2">
-        <Sparkles className="h-4 w-4 text-primary" />
-        <span className="text-sm font-medium">AI Coach</span>
+      <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-primary" />
+          <span className="text-sm font-medium">AI Coach</span>
+        </div>
+        <div className="flex rounded-md border border-border bg-surface p-0.5">
+          <button
+            onClick={() => setMode("socratic")}
+            title="Asks guiding questions"
+            className={`flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium transition ${
+              mode === "socratic"
+                ? "bg-primary/20 text-primary"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Brain className="h-3 w-3" /> Socratic
+          </button>
+          <button
+            onClick={() => setMode("direct")}
+            title="Gives direct answers"
+            className={`flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium transition ${
+              mode === "direct"
+                ? "bg-primary/20 text-primary"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Zap className="h-3 w-3" /> Direct
+          </button>
+        </div>
       </div>
       <div className="flex-1 space-y-3 overflow-auto p-3">
         {messages.map((m, i) => (
@@ -82,7 +114,7 @@ export function CoachChat({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && send()}
-            placeholder="Ask the coach…"
+            placeholder={mode === "socratic" ? "Tell me what you're stuck on…" : "Ask anything…"}
             className="flex-1 rounded-md border border-border bg-input px-3 py-1.5 text-sm outline-none focus:border-primary"
           />
           <button
