@@ -419,8 +419,13 @@ function PracticePage() {
             {mobileTab === "editor" && EditorPane}
             {mobileTab === "results" && ResultsPane}
             {mobileTab === "schema" && <SchemaExplorer />}
+            {mobileTab === "scratch" && <Scratchpad />}
             {mobileTab === "coach" && (
-              <CoachChat contextQuestion={question?.prompt} contextSql={sql} />
+              <CoachChat
+                contextQuestion={question?.prompt}
+                contextSql={sql}
+                contextScratchpad={typeof window !== "undefined" ? localStorage.getItem("snowql.scratchpad") ?? undefined : undefined}
+              />
             )}
           </div>
           <nav className="flex items-stretch border-t border-border bg-surface/80 backdrop-blur">
@@ -428,6 +433,7 @@ function PracticePage() {
               ["problem", BookOpen, "Problem"],
               ["editor", Play, "Editor"],
               ["results", DbIcon, "Results"],
+              ["scratch", StickyNote, "Notes"],
               ["schema", Table2, "Schema"],
               ["coach", MessageCircle, "Coach"],
             ] as const).map(([key, Icon, label]) => (
