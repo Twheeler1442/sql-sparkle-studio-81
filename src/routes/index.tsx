@@ -82,9 +82,13 @@ function PracticePage() {
   const [topic, setTopic] = useState<string>("any");
 
   // Mobile tabs
-  const [mobileTab, setMobileTab] = useState<"problem" | "editor" | "results" | "schema" | "coach">("problem");
+  const [mobileTab, setMobileTab] = useState<"problem" | "editor" | "results" | "schema" | "scratch" | "coach">("problem");
   // Desktop bottom tabs
-  const [tab, setTab] = useState<"results" | "critique">("results");
+  const [tab, setTab] = useState<"results" | "critique" | "scratch">("results");
+
+  // Custom scenario modal
+  const [scenarioOpen, setScenarioOpen] = useState(false);
+  const [customScenario, setCustomScenario] = useState("");
 
   const editorRef = useRef<HTMLDivElement>(null);
 
