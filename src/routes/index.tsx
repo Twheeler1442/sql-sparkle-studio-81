@@ -113,7 +113,7 @@ function PracticePage() {
     toast.success("Database reset to seed state");
   };
 
-  const generate = async () => {
+  const generate = async (scenarioOverride?: string) => {
     setGenLoading(true);
     setCritique("");
     setShowHints(false);
@@ -124,6 +124,7 @@ function PracticePage() {
           mode: "generate",
           difficulty,
           topic: topic === "any" ? undefined : topic,
+          customScenario: scenarioOverride || undefined,
         },
       });
       if (error) throw error;
@@ -132,6 +133,7 @@ function PracticePage() {
       setSql(`-- ${q.title}\n-- Difficulty: ${q.difficulty} · Topic: ${q.topic}\n-- Tables: ${(q.relevant_tables ?? []).join(", ")}\n\n`);
       if (isMobile) setMobileTab("problem");
       toast.success("New challenge generated");
+      setScenarioOpen(false);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to generate");
     } finally {
