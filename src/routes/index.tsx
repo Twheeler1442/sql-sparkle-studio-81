@@ -304,24 +304,26 @@ function PracticePage() {
   const ResultsPane = (
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-1 border-b border-border bg-surface/50 px-2">
-        {(["results", "critique"] as const).map((t) => (
+        {(["results", "critique", "scratch"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-3 py-1.5 text-xs font-medium transition ${
+            className={`flex items-center gap-1 px-3 py-1.5 text-xs font-medium transition ${
               tab === t
                 ? "border-b-2 border-primary text-foreground"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            {t === "results" ? "Results" : "AI Critique"}
+            {t === "results" ? "Results" : t === "critique" ? "AI Critique" : (
+              <><StickyNote className="h-3 w-3 text-warning" /> Scratchpad</>
+            )}
           </button>
         ))}
       </div>
       <div className="flex-1 overflow-hidden">
         {tab === "results" ? (
           <ResultsTable result={result} />
-        ) : (
+        ) : tab === "critique" ? (
           <div className="h-full overflow-auto p-4">
             {critiqueLoading ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -339,6 +341,8 @@ function PracticePage() {
               </p>
             )}
           </div>
+        ) : (
+          <Scratchpad />
         )}
       </div>
     </div>
