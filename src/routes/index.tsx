@@ -486,10 +486,73 @@ function PracticePage() {
               <CoachChat
                 contextQuestion={question?.prompt}
                 contextSql={sql}
+                contextScratchpad={typeof window !== "undefined" ? localStorage.getItem("snowql.scratchpad") ?? undefined : undefined}
               />
             </div>
           </ResizablePanel>
         </ResizablePanelGroup>
+      )}
+
+      {scenarioOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur"
+          onClick={() => setScenarioOpen(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg rounded-lg border border-border bg-surface shadow-2xl"
+          >
+            <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+              <Wand2 className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-semibold">Custom scenario</h3>
+            </div>
+            <div className="space-y-3 p-4">
+              <p className="text-xs text-muted-foreground">
+                Describe any business scenario in plain English. The AI will invent a realistic problem,
+                pick the right tables, add edge cases, and write a reference solution.
+              </p>
+              <textarea
+                value={customScenario}
+                onChange={(e) => setCustomScenario(e.target.value)}
+                rows={5}
+                placeholder={`e.g. "Find products that had a sudden 3-day spike in add-to-cart events but no matching jump in purchases — flag possible UX or pricing issues."\n\nor: "Build a weekly cohort retention matrix for users who first purchased via paid channels."`}
+                className="w-full resize-none rounded-md border border-border bg-input p-3 font-mono text-xs outline-none focus:border-primary"
+              />
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  "Detect fraud: refunds > 50% of payments within 24h",
+                  "Org chart: recursive CTE of manager hierarchy with depth",
+                  "Sessionize web events with 30-min idle gap, count steps to purchase",
+                  "MRR movement: new vs expansion vs churn by month",
+                ].map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setCustomScenario(s)}
+                    className="rounded border border-border bg-background px-2 py-1 text-[10px] text-muted-foreground hover:bg-accent hover:text-foreground transition"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-border px-4 py-3">
+              <button
+                onClick={() => setScenarioOpen(false)}
+                className="rounded-md border border-border px-3 py-1.5 text-xs hover:bg-accent transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => generate(customScenario.trim() || undefined)}
+                disabled={genLoading || !customScenario.trim()}
+                className="flex items-center gap-1.5 rounded-md bg-gradient-to-br from-primary to-accent-glow px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50 transition"
+              >
+                {genLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                Generate
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
