@@ -14,6 +14,8 @@ import {
   Table2,
   BookOpen,
   MessageCircle,
+  StickyNote,
+  Wand2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from "@/components/ui/resizable";
@@ -22,6 +24,7 @@ import { SqlEditor } from "@/components/SqlEditor";
 import { ResultsTable } from "@/components/ResultsTable";
 import { CoachChat } from "@/components/CoachChat";
 import { TablePreview } from "@/components/TablePreview";
+import { Scratchpad } from "@/components/Scratchpad";
 import { ensureDb, resetDb, runQuery, type QueryResult } from "@/lib/sql-engine";
 import { TABLES } from "@/lib/seed";
 import { supabase } from "@/integrations/supabase/client";
@@ -79,9 +82,13 @@ function PracticePage() {
   const [topic, setTopic] = useState<string>("any");
 
   // Mobile tabs
-  const [mobileTab, setMobileTab] = useState<"problem" | "editor" | "results" | "schema" | "coach">("problem");
+  const [mobileTab, setMobileTab] = useState<"problem" | "editor" | "results" | "schema" | "scratch" | "coach">("problem");
   // Desktop bottom tabs
-  const [tab, setTab] = useState<"results" | "critique">("results");
+  const [tab, setTab] = useState<"results" | "critique" | "scratch">("results");
+
+  // Custom scenario modal
+  const [scenarioOpen, setScenarioOpen] = useState(false);
+  const [customScenario, setCustomScenario] = useState("");
 
   const editorRef = useRef<HTMLDivElement>(null);
 
@@ -106,7 +113,7 @@ function PracticePage() {
     toast.success("Database reset to seed state");
   };
 
-  const generate = async () => {
+  const generate = async (scenarioOverride?: string) => {
     setGenLoading(true);
     setCritique("");
     setShowHints(false);
@@ -117,6 +124,7 @@ function PracticePage() {
           mode: "generate",
           difficulty,
           topic: topic === "any" ? undefined : topic,
+          customScenario: scenarioOverride || undefined,
         },
       });
       if (error) throw error;
@@ -125,6 +133,7 @@ function PracticePage() {
       setSql(`-- ${q.title}\n-- Difficulty: ${q.difficulty} · Topic: ${q.topic}\n-- Tables: ${(q.relevant_tables ?? []).join(", ")}\n\n`);
       if (isMobile) setMobileTab("problem");
       toast.success("New challenge generated");
+      setScenarioOpen(false);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to generate");
     } finally {
@@ -295,24 +304,26 @@ function PracticePage() {
   const ResultsPane = (
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-1 border-b border-border bg-surface/50 px-2">
-        {(["results", "critique"] as const).map((t) => (
+        {(["results", "critique", "scratch"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-3 py-1.5 text-xs font-medium transition ${
+            className={`flex items-center gap-1 px-3 py-1.5 text-xs font-medium transition ${
               tab === t
                 ? "border-b-2 border-primary text-foreground"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            {t === "results" ? "Results" : "AI Critique"}
+            {t === "results" ? "Results" : t === "critique" ? "AI Critique" : (
+              <><StickyNote className="h-3 w-3 text-warning" /> Scratchpad</>
+            )}
           </button>
         ))}
       </div>
       <div className="flex-1 overflow-hidden">
         {tab === "results" ? (
           <ResultsTable result={result} />
-        ) : (
+        ) : tab === "critique" ? (
           <div className="h-full overflow-auto p-4">
             {critiqueLoading ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -330,6 +341,8 @@ function PracticePage() {
               </p>
             )}
           </div>
+        ) : (
+          <Scratchpad />
         )}
       </div>
     </div>
@@ -371,13 +384,22 @@ function PracticePage() {
             {TOPICS.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
           <button
-            onClick={generate}
+            onClick={() => generate()}
             disabled={genLoading}
             className="flex items-center gap-1.5 rounded-md bg-gradient-to-br from-primary to-accent-glow px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50 transition"
           >
             {genLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
             <span className="hidden xs:inline sm:inline">New challenge</span>
             <span className="xs:hidden sm:hidden">New</span>
+          </button>
+          <button
+            onClick={() => setScenarioOpen(true)}
+            disabled={genLoading}
+            title="Describe a custom scenario"
+            className="flex items-center gap-1 rounded-md border border-primary/40 bg-primary/10 px-2 py-1.5 text-xs text-primary hover:bg-primary/20 disabled:opacity-50 transition"
+          >
+            <Wand2 className="h-3.5 w-3.5" />
+            <span className="hidden md:inline">Custom</span>
           </button>
           <button
             onClick={reset}
@@ -397,8 +419,13 @@ function PracticePage() {
             {mobileTab === "editor" && EditorPane}
             {mobileTab === "results" && ResultsPane}
             {mobileTab === "schema" && <SchemaExplorer />}
+            {mobileTab === "scratch" && <Scratchpad />}
             {mobileTab === "coach" && (
-              <CoachChat contextQuestion={question?.prompt} contextSql={sql} />
+              <CoachChat
+                contextQuestion={question?.prompt}
+                contextSql={sql}
+                contextScratchpad={typeof window !== "undefined" ? localStorage.getItem("snowql.scratchpad") ?? undefined : undefined}
+              />
             )}
           </div>
           <nav className="flex items-stretch border-t border-border bg-surface/80 backdrop-blur">
@@ -406,6 +433,7 @@ function PracticePage() {
               ["problem", BookOpen, "Problem"],
               ["editor", Play, "Editor"],
               ["results", DbIcon, "Results"],
+              ["scratch", StickyNote, "Notes"],
               ["schema", Table2, "Schema"],
               ["coach", MessageCircle, "Coach"],
             ] as const).map(([key, Icon, label]) => (
@@ -458,10 +486,73 @@ function PracticePage() {
               <CoachChat
                 contextQuestion={question?.prompt}
                 contextSql={sql}
+                contextScratchpad={typeof window !== "undefined" ? localStorage.getItem("snowql.scratchpad") ?? undefined : undefined}
               />
             </div>
           </ResizablePanel>
         </ResizablePanelGroup>
+      )}
+
+      {scenarioOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur"
+          onClick={() => setScenarioOpen(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg rounded-lg border border-border bg-surface shadow-2xl"
+          >
+            <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+              <Wand2 className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-semibold">Custom scenario</h3>
+            </div>
+            <div className="space-y-3 p-4">
+              <p className="text-xs text-muted-foreground">
+                Describe any business scenario in plain English. The AI will invent a realistic problem,
+                pick the right tables, add edge cases, and write a reference solution.
+              </p>
+              <textarea
+                value={customScenario}
+                onChange={(e) => setCustomScenario(e.target.value)}
+                rows={5}
+                placeholder={`e.g. "Find products that had a sudden 3-day spike in add-to-cart events but no matching jump in purchases — flag possible UX or pricing issues."\n\nor: "Build a weekly cohort retention matrix for users who first purchased via paid channels."`}
+                className="w-full resize-none rounded-md border border-border bg-input p-3 font-mono text-xs outline-none focus:border-primary"
+              />
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  "Detect fraud: refunds > 50% of payments within 24h",
+                  "Org chart: recursive CTE of manager hierarchy with depth",
+                  "Sessionize web events with 30-min idle gap, count steps to purchase",
+                  "MRR movement: new vs expansion vs churn by month",
+                ].map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setCustomScenario(s)}
+                    className="rounded border border-border bg-background px-2 py-1 text-[10px] text-muted-foreground hover:bg-accent hover:text-foreground transition"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-border px-4 py-3">
+              <button
+                onClick={() => setScenarioOpen(false)}
+                className="rounded-md border border-border px-3 py-1.5 text-xs hover:bg-accent transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => generate(customScenario.trim() || undefined)}
+                disabled={genLoading || !customScenario.trim()}
+                className="flex items-center gap-1.5 rounded-md bg-gradient-to-br from-primary to-accent-glow px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50 transition"
+              >
+                {genLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                Generate
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
