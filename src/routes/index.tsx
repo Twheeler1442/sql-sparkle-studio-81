@@ -380,13 +380,22 @@ function PracticePage() {
             {TOPICS.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
           <button
-            onClick={generate}
+            onClick={() => generate()}
             disabled={genLoading}
             className="flex items-center gap-1.5 rounded-md bg-gradient-to-br from-primary to-accent-glow px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50 transition"
           >
             {genLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
             <span className="hidden xs:inline sm:inline">New challenge</span>
             <span className="xs:hidden sm:hidden">New</span>
+          </button>
+          <button
+            onClick={() => setScenarioOpen(true)}
+            disabled={genLoading}
+            title="Describe a custom scenario"
+            className="flex items-center gap-1 rounded-md border border-primary/40 bg-primary/10 px-2 py-1.5 text-xs text-primary hover:bg-primary/20 disabled:opacity-50 transition"
+          >
+            <Wand2 className="h-3.5 w-3.5" />
+            <span className="hidden md:inline">Custom</span>
           </button>
           <button
             onClick={reset}
