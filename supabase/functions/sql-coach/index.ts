@@ -82,7 +82,11 @@ Difficulty guide:
 Be creative and realistic. Vary the topic and tables across calls. The "prompt" should read like a real analyst ticket.`;
       userPrompt = `Generate a ${difficulty || "medium"} difficulty problem${
         topic && topic !== "any" ? ` focused on ${topic}` : ""
-      }. Pick interesting business angles (cohorts, attribution, funnels, churn, inventory health, NPS-style, etc.) when difficulty allows.`;
+      }.${
+        customScenario
+          ? `\n\nUSER-REQUESTED SCENARIO (must drive the problem — invent realistic specifics, edge cases, and ambiguity-resolving constraints around this idea; pick whatever tables fit best, even multiple domains): "${customScenario}"`
+          : " Pick interesting business angles (cohorts, attribution, funnels, churn, inventory health, retention, MRR movement, basket analysis, NPS-style, anomaly detection, A/B-style cuts, etc.) when difficulty allows."
+      }`;
     } else if (mode === "critique") {
       systemPrompt = `You are an expert SQL reviewer / mentor. Schema:
 ${SCHEMA}
@@ -98,8 +102,33 @@ Review the user's SQL submission against the question. Be specific, cite line/co
           : ""
       }`;
     } else if (mode === "chat") {
-      systemPrompt = `You are a SQL tutor inside a practice app. Schema:\n${SCHEMA}\nAnswer questions about SQL, the schema, or help debug. Be concise, use markdown, and prefer code blocks for SQL examples.`;
-      userPrompt = question;
+      const socratic = coachStyle !== "direct";
+      systemPrompt = socratic
+        ? `You are a SQL coach using the SOCRATIC METHOD. Schema:
+${SCHEMA}
+
+RULES — follow strictly:
+- Do NOT write full SQL solutions. Do NOT reveal the answer.
+- Ask ONE focused guiding question at a time. Make the learner think.
+- Typical opening probes: "Okay — what tables do you think we need?", "What's the grain of the final result — one row per what?", "What's the end shape you're aiming for?", "What would you filter first?", "Where could NULLs bite us?"
+- If they're truly stuck after 2-3 exchanges, offer a small structural nudge (e.g. "Consider a CTE that first aggregates X per Y") — never the full query.
+- Keep replies short (2-4 sentences). Use markdown. Tiny SQL fragments are OK as illustration, never the whole answer.
+- Validate good thinking before redirecting. Be warm and patient.`
+        : `You are a SQL tutor. Schema:
+${SCHEMA}
+Give direct, accurate answers with worked SQL examples. Use markdown and code blocks.`;
+      const ctx = [
+        contextQuestion ? `CURRENT PROBLEM:\n${contextQuestion}` : "",
+        contextSql ? `LEARNER'S CURRENT SQL:\n\`\`\`sql\n${contextSql}\n\`\`\`` : "",
+        contextScratchpad ? `LEARNER'S SCRATCHPAD NOTES:\n${contextScratchpad}` : "",
+        Array.isArray(history) && history.length
+          ? `RECENT CONVERSATION:\n${history.map((m: { role: string; content: string }) => `${m.role}: ${m.content}`).join("\n")}`
+          : "",
+        `LEARNER ASKS: ${question}`,
+      ]
+        .filter(Boolean)
+        .join("\n\n");
+      userPrompt = ctx;
     } else {
       throw new Error("Invalid mode");
     }
