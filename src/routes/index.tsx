@@ -14,6 +14,8 @@ import {
   Table2,
   BookOpen,
   MessageCircle,
+  StickyNote,
+  Wand2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from "@/components/ui/resizable";
@@ -22,6 +24,7 @@ import { SqlEditor } from "@/components/SqlEditor";
 import { ResultsTable } from "@/components/ResultsTable";
 import { CoachChat } from "@/components/CoachChat";
 import { TablePreview } from "@/components/TablePreview";
+import { Scratchpad } from "@/components/Scratchpad";
 import { ensureDb, resetDb, runQuery, type QueryResult } from "@/lib/sql-engine";
 import { TABLES } from "@/lib/seed";
 import { supabase } from "@/integrations/supabase/client";
